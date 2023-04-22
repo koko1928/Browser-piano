@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>MIDI to Piano</title>
+  </head>
+  <body>
+    <input type="file" id="file-input">
+    <button id="play-button">Play</button>
+
+    <script>
+      const fileInput = document.getElementById('file-input');
+      const playButton = document.getElementById('play-button');
+
+      fileInput.addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+        const arrayBuffer = await file.arrayBuffer();
+        const midiFile = new MidiFile(arrayBuffer);
+        const midiData = midiFile.getMidiData();
+
+        const output = new PianoOutput();
+
+        const playback = new MidiPlayback(midiData, output);
+        playback.init();
+
+        playButton.addEventListener('click', () => {
+          playback.start();
+        });
+      });
+    </script>
+    <script src="https://unpkg.com/midi-file"></script>
+    <script src="https://unpkg.com/midi-player-js"></script>
+    <script src="https://unpkg.com/midi-sounds-websynth"></script>
+    <script>
+      MidiPlayer.setup({
+        soundfontUrl: 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/',
+        instrument: 'acoustic_grand_piano',
+      });
+
+      class PianoOutput {
+        constructor() {
+          this.channels = [];
+          for (let i = 0; i < 16; i++) {
+            const channel = MidiPlayer.createChannel();
+            channel.programChange(i, 0);
+            this.channels.push(channel);
+          }
+        }
+
+        playNoteOn(channel, note, velocity) {
+          this.channels[channel].noteOn(note, velocity);
+        }
+
+        playNoteOff(channel, note) {
+          this.channels[channel].noteOff(note);
+        }
+      }
+
+      class MidiPlayback extends MidiPlayer.Player {
+        constructor(midiData, output) {
+          super();
+          this.loadArrayBuffer(midiData);
+          this.output = output;
+        }
+
+        onNoteOn(channel, note, velocity) {
+          this.output.playNoteOn(channel, note, velocity);
+        }
+
+        onNoteOff(channel, note) {
+          this.output.playNoteOff(channel, note);
+        }
+      }
+    </script>
+  </body>
+</html>
