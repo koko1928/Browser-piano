@@ -1,2 +1,2 @@
 # Browser-piano
-piano on browser.MIDI file to piano sound.
+This is a tool of MIDI file to piano's sound!
