@@ -1,75 +1,128 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>MIDI to Piano</title>
+    <title>Piano App</title>
+    <style>
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        background-color: #f0f0f0;
+      }
+
+      #piano {
+        display: flex;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        border-radius: 10px;
+      }
+
+      .white-key, .black-key {
+        width: 40px;
+        height: 200px;
+        border: 1px solid #000;
+        cursor: pointer;
+        transition: background-color 0.1s, transform 0.1s, box-shadow 0.1s;
+        position: relative;
+      }
+
+      .black-key {
+        background-color: #000;
+        margin-left: -20px;
+        width: 30px;
+        height: 120px;
+        z-index: 1;
+      }
+
+      .white-key:hover, .black-key:hover {
+        transform: scale(1.03);
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.7);
+      }
+    </style>
   </head>
   <body>
-    <input type="file" id="file-input">
-    <button id="play-button">Play</button>
+    <div id="piano">
+      <div class="white-key" data-note="60"></div> <!-- C4 -->
+      <div class="black-key" data-note="61"></div> <!-- C#4 -->
+      <div class="white-key" data-note="62"></div> <!-- D4 -->
+      <div class="black-key" data-note="63"></div> <!-- D#4 -->
+      <div class="white-key" data-note="64"></div> <!-- E4 -->
+      <div class="white-key" data-note="65"></div> <!-- F4 -->
+      <div class="black-key" data-note="66"></div> <!-- F#4 -->
+      <div class="white-key" data-note="67"></div> <!-- G4 -->
+      <div class="black-key" data-note="68"></div> <!-- G#4 -->
+      <div class="white-key" data-note="69"></div> <!-- A4 -->
+      <div class="black-key" data-note="70"></div> <!-- A#4 -->
+      <div class="white-key" data-note="71"></div> <!-- B4 -->
+      <div class="white-key" data-note="72"></div> <!-- C5 -->
+      <div class="black-key" data-note="73"></div> <!-- C#5 -->
+      <div class="white-key" data-note="74"></div> <!-- D5 -->
+      <div class="black-key" data-note="75"></div> <!-- D#5 -->
+      <div class="white-key" data-note="76"></div> <!-- E5 -->
+      <div class="white-key" data-note="77"></div> <!-- F5 -->
+      <div class="black-key" data-note="78"></div> <!-- F#5 -->
+      <div class="white-key" data-note="79"></div> <!-- G5 -->
+      <div class="black-key" data-note="80"></div> <!-- G#5 -->
+      <div class="white-key" data-note="81"></div> <!-- A5 -->
+      <div class="black-key" data-note="82"></div> <!-- A#5 -->
+      <div class="white-key" data-note="83"></div> <!-- B5 -->
+      <div class="white-key" data-note="84"></div> <!-- C6 -->
+      <div class="black-key" data-note="85"></div> <!-- C#6 -->
+      <div class="white-key" data-note="86"></div> <!-- D6 -->
+      <div class="black-key" data-note="87"></div> <!-- D#6 -->
+      <div class="white-key" data-note="88"></div> <!-- E6 -->
+      <div class="white-key" data-note="89"></div> <!-- F6 -->
+      <div class="black-key" data-note="90"></div> <!-- F#6 -->
+      <div class="white-key" data-note="91"></div> <!-- G6 -->
+    </div>
 
     <script>
-      const fileInput = document.getElementById('file-input');
-      const playButton = document.getElementById('play-button');
+      const piano = document.getElementById('piano');
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      const audioContext = new AudioContext();
+      const activeNotes = new Map();
 
-      fileInput.addEventListener('change', async (event) => {
-        const file = event.target.files[0];
-        const arrayBuffer = await file.arrayBuffer();
-        const midiFile = new MidiFile(arrayBuffer);
-        const midiData = midiFile.getMidiData();
-
-        const output = new PianoOutput();
-
-        const playback = new MidiPlayback(midiData, output);
-        playback.init();
-
-        playButton.addEventListener('click', () => {
-          playback.start();
-        });
-      });
-    </script>
-    <script src="https://unpkg.com/midi-file"></script>
-    <script src="https://unpkg.com/midi-player-js"></script>
-    <script src="https://unpkg.com/midi-sounds-websynth"></script>
-    <script>
-      MidiPlayer.setup({
-        soundfontUrl: 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/',
-        instrument: 'acoustic_grand_piano',
-      });
-
-      class PianoOutput {
-        constructor() {
-          this.channels = [];
-          for (let i = 0; i < 16; i++) {
-            const channel = MidiPlayer.createChannel();
-            channel.programChange(i, 0);
-            this.channels.push(channel);
-          }
-        }
-
-        playNoteOn(channel, note, velocity) {
-          this.channels[channel].noteOn(note, velocity);
-        }
-
-        playNoteOff(channel, note) {
-          this.channels[channel].noteOff(note);
+      function playSound(note) {
+        if (!activeNotes.has(note)) {
+          const oscillator = audioContext.createOscillator();
+          oscillator.type = 'sine';
+          oscillator.frequency.setValueAtTime(noteToFrequency(note), audioContext.currentTime);
+          oscillator.connect(audioContext.destination);
+          oscillator.start();
+          activeNotes.set(note, oscillator);
         }
       }
 
-      class MidiPlayback extends MidiPlayer.Player {
-        constructor(midiData, output) {
-          super();
-          this.loadArrayBuffer(midiData);
-          this.output = output;
-        }
-
-        onNoteOn(channel, note, velocity) {
-          this.output.playNoteOn(channel, note, velocity);
-        }
-
-        onNoteOff(channel, note) {
-          this.output.playNoteOff(channel, note);
+      function stopSound(note) {
+        if (activeNotes.has(note)) {
+          const oscillator = activeNotes.get(note);
+          oscillator.stop();
+          activeNotes.delete(note);
         }
       }
+
+      function noteToFrequency(note) {
+        return 440 * Math.pow(2, (note - 69) / 12);
+      }
+
+      piano.addEventListener('mousedown', (event) => {
+        const target = event.target;
+        if (target.classList.contains('white-key') || target.classList.contains('black-key')) {
+          const note = parseInt(target.getAttribute('data-note'), 10);
+          playSound(note);
+          target.style.backgroundColor = 'lightgray';
+        }
+      });
+
+      piano.addEventListener('mouseup', (event) => {
+        const target = event.target;
+        if (target.classList.contains('white-key') || target.classList.contains('black-key')) {
+          const note = parseInt(target.getAttribute('data-note'), 10);
+          stopSound(note);
+          target.style.backgroundColor = '';
+        }
+      });
     </script>
   </body>
 </html>
